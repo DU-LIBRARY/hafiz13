@@ -101,12 +101,19 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 .line { position: relative; display: flex; align-items: center; justify-content: flex-start; min-width: 0; overflow: visible; }
 .line .in {
   display: flex; direction: rtl; white-space: nowrap;
-  gap: 0.28em; transform-origin: right center;
+  gap: var(--gap, 0.14em); transform-origin: right center;
 }
 .line.justify .in { width: 100%; justify-content: space-between; }
 .line.center { justify-content: center; }
+/* Ruled lines between the 13 rows, as printed in the hafizi mushaf. */
+body.ruled .page:not(.opening) .line:not(:last-child)::after {
+  content: ""; position: absolute; left: -1.5%; right: -1.5%; bottom: 0;
+  border-bottom: 0.75px solid var(--rule); opacity: 0.55; pointer-events: none;
+}
 .line.center .in { transform-origin: center center; }
 .w { display: inline-block; }
+/* Waqf signs sit in the gap between words; give them room so they never land on a letter. */
+.mark { display: inline-block; padding-left: 0.3em; }
 
 .surah-band {
   position: absolute; inset: 10% -2.5%;

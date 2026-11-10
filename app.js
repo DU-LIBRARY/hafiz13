@@ -6,6 +6,9 @@
   const book = $("#book");
   const PAGE_ASPECT = 0.66;          // printed page block, width / height
   const LINES = 13;
+  // A token made only of Quranic marks (waqf signs, ayah-end symbols) and no letters.
+  const MARK_ONLY = /^[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\uE000-\uF8FF\s]+$/;
+  const MAX_STRETCH = 1.1;            // most a short line's letters are widened before gaps grow
 
   // ---------- persisted state ----------
   const store = {
@@ -16,6 +19,7 @@
     page: store.get("page", 1),
     theme: store.get("theme", "paper"),
     spreadPref: store.get("spread", true),
+    ruled: store.get("ruled", true),
     bookmarks: store.get("bookmarks", []),   // [{p, t}]
   };
 
@@ -45,6 +49,16 @@
     if (cls) e.className = cls;
     if (text != null) e.textContent = text;
     return e;
+  }
+
+  /** One word. A waqf sign written after it gets its own small box so it never sits on the next word. */
+  function wordEl(w) {
+    if (MARK_ONLY.test(w)) return el("span", "w mark", w);
+    const sp = w.indexOf(" ");
+    if (sp < 0 || !MARK_ONLY.test(w.slice(sp + 1))) return el("span", "w", w);
+    const s = el("span", "w", w.slice(0, sp));
+    s.append(el("span", "mark", w.slice(sp + 1)));
+    return s;
   }
 
   function buildPage(p) {
@@ -77,7 +91,7 @@
         const centered = !Array.isArray(line) || p <= 2;
         row.classList.add(centered ? "center" : "justify");
         const inner = el("div", "in");
-        for (const w of words) inner.append(el("span", "w", w));
+        for (const w of words) inner.append(wordEl(w));
         row.append(inner);
       }
       lines.append(row);
@@ -102,19 +116,22 @@
 
     const lines = wrap.querySelector(".lines");
     const slotH = lines.clientHeight / LINES;
-    let fs = slotH * 0.5;
+    let fs = slotH * 0.62;
     lines.style.setProperty("--fs", fs + "px");
 
-    // Measure every line at its natural width.
+    // Measure every line at its natural (tight) width.
     const rows = [...lines.querySelectorAll(".line")].filter((r) => r.firstChild && r.firstChild.classList.contains("in"));
     rows.forEach((r) => { const i = r.firstChild; i.style.width = "max-content"; i.style.justifyContent = "flex-start"; i.style.transform = ""; });
     const avail = lines.clientWidth;
     let widths = rows.map((r) => r.firstChild.scrollWidth);
+    // Size the type so a typical line just fills the width, as the calligrapher does: longer lines are
+    // gently condensed and shorter ones gently widened, so words sit close together instead of
+    // being pushed apart by big gaps.
     const full = rows.map((r, k) => (r.classList.contains("justify") ? widths[k] : 0)).filter(Boolean).sort((a, b) => a - b);
     if (full.length) {
-      const p80 = full[Math.min(full.length - 1, Math.floor(full.length * 0.8))];
-      if (p80 > avail) {
-        const k = avail / p80;
+      const mid = full[Math.floor(full.length * 0.55)];
+      const k = Math.min(1, avail / mid);
+      if (k < 1) {
         fs *= k;
         lines.style.setProperty("--fs", fs + "px");
         widths = rows.map((r) => r.firstChild.scrollWidth);
@@ -126,8 +143,11 @@
         // Condense a long line rather than ever re-wrapping it.
         inner.style.transform = `scaleX(${avail / w})`;
       } else if (r.classList.contains("justify") && w > avail * 0.6) {
-        inner.style.width = "100%";
+        // Widen the letters a little (like kashida), then share out what is left between the words.
+        const s = Math.min(avail / w, MAX_STRETCH);
+        inner.style.width = avail / s + "px";
         inner.style.justifyContent = "space-between";
+        if (s > 1.001) inner.style.transform = `scaleX(${s})`;
       }
     });
   }
@@ -257,6 +277,7 @@
   $("#btn-settings").addEventListener("click", () => {
     settings.querySelector(`input[value="${state.theme}"]`).checked = true;
     $("#opt-spread").checked = state.spreadPref;
+    $("#opt-ruled").checked = state.ruled;
     settings.showModal();
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -323,6 +344,7 @@
 
   settings.addEventListener("change", (e) => {
     if (e.target.name === "theme") applyTheme(e.target.value);
+    if (e.target.id === "opt-ruled") { state.ruled = e.target.checked; store.set("ruled", state.ruled); document.body.classList.toggle("ruled", state.ruled); }
     if (e.target.id === "opt-spread") { state.spreadPref = e.target.checked; store.set("spread", state.spreadPref); buildSlots(); }
   });
   function applyTheme(t) {
@@ -334,6 +356,7 @@
 
   // ---------- start ----------
   applyTheme(state.theme);
+  document.body.classList.toggle("ruled", state.ruled);
   Promise.all([
     fetch("mushaf.json").then((r) => r.json()),
     document.fonts.load('24px "IndoPak"', "ب"),
