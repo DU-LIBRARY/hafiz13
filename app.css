@@ -27,7 +27,7 @@ body[data-theme="white"] {
 }
 body[data-theme="night"] {
   --paper: #14130F; --ink: #E9E2D2; --rule: #8C7550; --header: #221F18; --muted: #8E8676;
-  --bar: rgba(30, 28, 23, 0.92); --line: rgba(233, 226, 210, 0.12); --accent: #C9A86A;
+  --bar: rgba(30, 28, 23, 0.92); --line: rgba(233, 226, 210, 0.12); --accent: #C9A86A; --ribbon: #D9675C;
   color-scheme: dark;
 }
 
@@ -97,9 +97,9 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
   direction: rtl;
 }
 /* The outer margin strip, outside the frame. Odd pages are right-hand pages, so their outer edge is the right. */
-.page:has(.margin) { width: calc(var(--pw, 100%) - var(--mw, 0px)); }
-.page:has(.margin.outer-right) { margin-right: var(--mw, 0px); }
-.page:has(.margin.outer-left) { margin-left: var(--mw, 0px); }
+.page.m-right, .page.m-left { width: calc(var(--pw, 100%) - var(--mw, 0px)); }
+.page.m-right { margin-right: var(--mw, 0px); }
+.page.m-left { margin-left: var(--mw, 0px); }
 .margin {
   position: absolute; top: 1.4%; bottom: 1.2%; width: var(--mw, 0px);
   display: grid; grid-template-rows: repeat(13, 1fr);
@@ -131,7 +131,7 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 .line.justify .in { width: 100%; justify-content: space-between; }
 .line.center { justify-content: center; }
 /* Ruled lines between the 13 rows, as printed in the hafizi mushaf. */
-body.ruled .page:not(.opening) .line:not(:last-child)::after {
+body.ruled .page:not(.opening) .line:not(:last-child):not(.blank)::after {
   content: ""; position: absolute; left: -1.5%; right: -1.5%; bottom: 0;
   border-bottom: 0.75px solid var(--rule); opacity: 0.55; pointer-events: none;
 }
@@ -254,7 +254,8 @@ dialog[open] { animation: up 0.22s cubic-bezier(.2, .8, .2, 1); }
 .list .empty { padding: 40px 24px; text-align: center; color: var(--muted); border: 0; }
 .list .del { color: var(--ribbon); font-size: 13px; padding: 6px 4px; }
 .list li.bm { display: flex; align-items: center; padding-right: 14px; }
-.list li.bm > button:first-child { flex: 1; }
+.list li.bm > button:first-child { flex: 1; min-width: 0; }
+.list li.bm > .del { width: auto; flex: 0 0 auto; display: block; padding: 10px 6px; }
 
 .seg { border: 0; margin: 4px 16px 18px; padding: 0; }
 .seg legend { font-size: 13px; color: var(--muted); margin-bottom: 8px; }

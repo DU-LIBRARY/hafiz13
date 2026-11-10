@@ -69,6 +69,7 @@
     head.append(el("span", "", "Juz " + juzOf(p)), el("span", "", M.surahs[surahOf(p) - 1][0]));
     const page = el("div", "page" + (p <= 2 ? " opening" : ""));
     const lines = el("div", "lines");
+    lines.lang = "ar";
     const data = M.pages[p - 1];
     let used = LINES;
     while (used > 0 && data[used - 1] === 0) used--;
@@ -77,7 +78,7 @@
     data.forEach((line, i) => {
       if (p <= 2 && i >= used) return;
       const row = el("div", "line");
-      if (line === 0) { lines.append(row); return; }
+      if (line === 0) { if (i >= used) row.classList.add("blank"); lines.append(row); return; }
       if (line === "b") {
         row.classList.add("center");
         const inner = el("div", "in bismillah", "﷽");
@@ -98,7 +99,10 @@
       lines.append(row);
     });
     page.append(lines);
-    if (state.margins && M.marks) page.append(buildMargin(p, used));
+    if (state.margins && M.marks) {
+      page.classList.add(p % 2 ? "m-right" : "m-left");
+      page.append(buildMargin(p, used));
+    }
     if (state.bookmarks.some((b) => b.p === p)) page.append(el("div", "ribbon"));
     const foot = el("div", "foot", String(p));
     wrap.append(head, page, foot);
@@ -113,6 +117,7 @@
   function buildMargin(p, used) {
     const margin = el("div", "margin " + (p % 2 ? "outer-right" : "outer-left"));
     margin.setAttribute("aria-hidden", "true");
+    margin.lang = "ar";
     const byLine = new Map();
     for (const m of M.marks[p - 1]) {
       if (p <= 2 && m[0] >= used) continue;
@@ -358,11 +363,17 @@
     list.replaceChildren();
     const p = state.page;
     if (tab === "surah") {
-      const q = $("#search").value.trim().toLowerCase();
+      // Ignore case, spaces, hyphens and apostrophes: "yasin", "ya sin" and "Ya-Sin" all match.
+      // A leading "al-", "an-", "ali" etc. is optional too, so "al imran" finds "Ali 'Imran".
+      const norm = (s) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, "");
+      const ARTICLES = ["aale", "aal", "ali", "ash", "adh", "al", "an", "ar", "as", "at", "ad", "az"];
+      const bare = (s) => [s, ...ARTICLES.filter((a) => s.startsWith(a) && s.length - a.length >= 2).map((a) => s.slice(a.length))];
+      const startsLike = (name, q) => { const qs = bare(q); return bare(name).some((v) => qs.some((x) => v.startsWith(x))); };
+      const q = norm($("#search").value);
       const cur = surahOf(p);
       M.surahs.forEach(([en, ar, tr, v, start], i) => {
         const n = i + 1;
-        if (q && !(String(n) === q || en.toLowerCase().includes(q) || tr.toLowerCase().includes(q) || ar.includes(q))) return;
+        if (q && !(String(n) === q || norm(en).includes(q) || startsLike(norm(en), q) || norm(tr).includes(q) || norm(ar).includes(q))) return;
         list.append(row(n, en, `${tr} · ${v} ayat`, ar, start, n === cur, () => open(start)));
       });
     } else if (tab === "juz") {
