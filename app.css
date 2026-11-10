@@ -96,6 +96,31 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
   line-height: 1; color: var(--ink);
   direction: rtl;
 }
+/* The outer margin strip, outside the frame. Odd pages are right-hand pages, so their outer edge is the right. */
+.page:has(.margin) { width: calc(var(--pw, 100%) - var(--mw, 0px)); }
+.page:has(.margin.outer-right) { margin-right: var(--mw, 0px); }
+.page:has(.margin.outer-left) { margin-left: var(--mw, 0px); }
+.margin {
+  position: absolute; top: 1.4%; bottom: 1.2%; width: var(--mw, 0px);
+  display: grid; grid-template-rows: repeat(13, 1fr);
+  font-family: "IndoPak", serif; color: var(--accent); direction: rtl;
+  font-size: calc(var(--mw, 30px) * 0.46); line-height: 1;
+}
+.margin.outer-right { right: calc(-1 * var(--mw, 0px) - 1.5px); }
+.margin.outer-left { left: calc(-1 * var(--mw, 0px) - 1.5px); }
+.page.opening .margin { align-content: center; grid-template-rows: repeat(var(--used, 13), calc(100% / 13)); }
+.mk { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25em; min-height: 0; }
+.ruku { position: relative; display: flex; flex-direction: column; align-items: center; line-height: 0.95; }
+.ruku .n, .ruku .jn { font-family: var(--ui); font-size: 0.78em; font-weight: 600; }
+.ruku .below { margin-top: 0.3em; }
+.ruku .ain { font-size: 1.7em; line-height: 1.05; }
+.ruku .jn { position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.62em; }
+.outer-right .ruku .jn { right: -1em; }
+.outer-left .ruku .jn { left: -1em; }
+.lbl { font-family: var(--ui); font-size: 0.72em; font-weight: 600; display: flex; flex-direction: column; align-items: center; white-space: nowrap; line-height: 1.1; }
+.lbl .big { font-size: 1.45em; }
+.lbl.para { color: var(--ribbon); }
+.lbl.sajdah { color: var(--ribbon); }
 .page.opening .lines { align-content: center; grid-template-rows: repeat(var(--used, 13), calc(100% / 13)); }
 
 .line { position: relative; display: flex; align-items: center; justify-content: flex-start; min-width: 0; overflow: visible; }
