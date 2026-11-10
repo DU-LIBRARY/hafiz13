@@ -140,7 +140,7 @@
           b.append(el("span", "", m[1] === "j" ? "پارہ" : "منزل"), el("span", "big", urdu(m[2])));
           cell.append(b);
         } else if (m[1] === "s") {
-          cell.append(el("div", "lbl sajdah", "سجدة"));
+          cell.append(el("div", "lbl sajdah", "سجدہ"));
         }
       }
       margin.append(cell);
