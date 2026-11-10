@@ -17,7 +17,7 @@
   };
   const state = {
     page: store.get("page", 1),
-    theme: store.get("theme", "paper"),
+    theme: store.get("theme", "white"),
     spreadPref: store.get("spread", true),
     ruled: store.get("ruled", true),
     margins: store.get("margins", true),
