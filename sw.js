@@ -1,5 +1,5 @@
 // Offline support: everything the reader needs is cached on first visit.
-const CACHE = "hafiz13-v1";
+const CACHE = "hafiz13-v2";
 const ASSETS = [
   "./", "index.html", "app.css", "app.js", "mushaf.json", "manifest.webmanifest",
   "fonts/indopak.woff2", "fonts/surah-names.woff",
@@ -18,18 +18,25 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Cache first, then network (and remember what the network returns).
+function fetchAndStore(req) {
+  return fetch(req).then((res) => {
+    if (res.ok && new URL(req.url).origin === location.origin) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy));
+    }
+    return res;
+  });
+}
+
+// The app's own code (page, script, styles) is fetched fresh when online so fixes
+// arrive on the next open; everything else (mushaf data, fonts, icons) is cache-first.
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  const path = new URL(e.request.url).pathname;
+  const isShell = e.request.mode === "navigate" || /\.(js|css|html|webmanifest)$/.test(path) || path.endsWith("/");
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) =>
-      hit || fetch(e.request).then((res) => {
-        if (res.ok && new URL(e.request.url).origin === location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      })
-    )
+    isShell
+      ? fetchAndStore(e.request).catch(() => caches.match(e.request, { ignoreSearch: true }))
+      : caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetchAndStore(e.request))
   );
 });

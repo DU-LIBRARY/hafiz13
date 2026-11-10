@@ -194,7 +194,8 @@
     clearTimeout(resizeT);
     resizeT = setTimeout(() => {
       if (wantSpread() !== spread) buildSlots();
-      else { refitAll(); book.scrollTo({ left: -currentSlot * book.clientWidth, behavior: "instant" }); }
+      if (chromeOn) showChrome(true); else refitAll();
+      book.scrollTo({ left: -currentSlot * book.clientWidth, behavior: "instant" });
     }, 120);
   });
 
@@ -208,7 +209,20 @@
   // ---------- chrome ----------
   const top = $("#topbar"), bottom = $("#bottombar"), scrub = $("#scrub");
   let chromeOn = false;
-  function showChrome(on) { chromeOn = on; top.hidden = !on; bottom.hidden = !on; }
+  /** Show or hide the bars. While they show, the page shrinks to fit between them so no line is ever covered. */
+  function showChrome(on) {
+    chromeOn = on;
+    top.hidden = !on; bottom.hidden = !on;
+    document.body.classList.toggle("chrome-on", on);
+    if (on) {
+      const t = top.getBoundingClientRect(), b = bottom.getBoundingClientRect();
+      book.style.top = Math.ceil(t.bottom + 4) + "px";
+      book.style.bottom = Math.ceil(innerHeight - b.top + 4) + "px";
+    } else {
+      book.style.top = ""; book.style.bottom = "";
+    }
+    refitAll();
+  }
   book.addEventListener("click", () => showChrome(!chromeOn));
 
   function updateChrome() {
@@ -335,6 +349,6 @@
   });
 
   if ("serviceWorker" in navigator) {
-    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {}));
   }
 })();

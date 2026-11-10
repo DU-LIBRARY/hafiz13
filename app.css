@@ -59,6 +59,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
            max(env(safe-area-inset-bottom), 8px) max(env(safe-area-inset-left), 6px);
 }
 .slot.spread .page-wrap { width: 50%; }
+/* With the bars showing, the book already sits between them: drop the safe-area padding. */
+body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 
 .page-wrap {
   position: relative; direction: ltr;
