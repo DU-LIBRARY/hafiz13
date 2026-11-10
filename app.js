@@ -107,17 +107,37 @@
 
   const urdu = (n) => String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
 
-  /** The outer margin of the printed page: the ruku' sign where each ruku' ends, level with its line. */
+  const QUARTERS = ["", "ربع", "نصف", "ثلثة"];
+
+  /** The outer margin of the printed page: ruku', quarter, para, manzil and sajdah marks, level with their lines. */
   function buildMargin(p, used) {
     const margin = el("div", "margin " + (p % 2 ? "outer-right" : "outer-left"));
     margin.setAttribute("aria-hidden", "true");
+    const byLine = new Map();
     for (const m of M.marks[p - 1]) {
-      if (m[1] !== "r" || (p <= 2 && m[0] >= used)) continue;
-      // Number in the surah above the ع, ayat in the ruku' below, number in the para at the side.
-      const cell = el("div", "mk"), r = el("div", "ruku");
-      cell.style.gridRow = m[0] + 1;
-      r.append(el("span", "n", urdu(m[2])), el("span", "ain", "ع"), el("span", "n below", urdu(m[3])), el("span", "jn", urdu(m[4])));
-      cell.append(r);
+      if (p <= 2 && m[0] >= used) continue;
+      if (!byLine.has(m[0])) byLine.set(m[0], []);
+      byLine.get(m[0]).push(m);
+    }
+    for (const [line, ms] of byLine) {
+      const cell = el("div", "mk");
+      cell.style.gridRow = line + 1;
+      for (const m of ms) {
+        if (m[1] === "r") {
+          // Number in the surah above the ع, ayat in the ruku' below, number in the para at the side.
+          const r = el("div", "ruku");
+          r.append(el("span", "n", urdu(m[2])), el("span", "ain", "ع"), el("span", "n below", urdu(m[3])), el("span", "jn", urdu(m[4])));
+          cell.append(r);
+        } else if (m[1] === "q") {
+          cell.append(el("div", "lbl", QUARTERS[m[2]]));
+        } else if (m[1] === "j" || m[1] === "m") {
+          const b = el("div", "lbl" + (m[1] === "j" ? " para" : ""));
+          b.append(el("span", "", m[1] === "j" ? "پارہ" : "منزل"), el("span", "big", urdu(m[2])));
+          cell.append(b);
+        } else if (m[1] === "s") {
+          cell.append(el("div", "lbl sajdah", "سجدہ"));
+        }
+      }
       margin.append(cell);
     }
     return margin;
