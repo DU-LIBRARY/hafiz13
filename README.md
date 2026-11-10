@@ -12,9 +12,10 @@ A clean 13-line IndoPak Quran reader (Taj Company layout, 847 pages) for iPhone 
 
 `tools/build_marks.py` reads the marks from the text (they are encoded on the end-of-ayah glyphs) and writes them into `mushaf.json`. It checks every surah's ayah count and finds 558 ruku', 30 paras (each starting at the top of a page), 7 manzils and 14 sajdahs. The source text has no ثلثة mark for para 27.
 
-## Install on iPhone / iPad
+## Install
 
-Open the site in Safari → Share → **Add to Home Screen**.
+- **Android:** open the site in Chrome and tap **Install** on the banner (or ⋮ menu → **Install app**). Links opened inside WhatsApp, Instagram and similar apps can't install; the app shows an **Open in Chrome** button there.
+- **iPhone / iPad:** open the site in Safari → Share → **Add to Home Screen**.
 
 ## Credits
 

@@ -1,9 +1,9 @@
 // Offline support: everything the reader needs is cached on first visit.
-const CACHE = "hafiz13-v7";
+const CACHE = "hafiz13-v9";
 const ASSETS = [
   "./", "index.html", "app.css", "app.js", "mushaf.json", "manifest.webmanifest",
   "fonts/indopak.woff2", "fonts/surah-names.woff",
-  "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png",
+  "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png",
 ];
 
 self.addEventListener("install", (e) => {

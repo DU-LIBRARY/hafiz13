@@ -398,6 +398,67 @@
     document.querySelector('meta[name="theme-color"]').setAttribute("content", c);
   }
 
+  // ---------- install (Android: one-tap install; in-app browsers can't install, so send people to Chrome) ----------
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const inAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Line\/|Snapchat|TikTok|musical_ly|Telegram|WhatsApp|GSA\/|; wv\)/i.test(ua);
+  const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  let installPrompt = null;
+  const banner = $("#install-banner");
+
+  function installHow() {
+    if (installed) return "";
+    if (inAppBrowser) return isIOS ? "Open this page in Safari first (share menu → Open in Safari), then Share → Add to Home Screen."
+                                   : "Open this page in Chrome first (⋮ menu → Open in Chrome), then tap Install.";
+    if (installPrompt) return "Adds Hafiz 13 to your home screen and works offline.";
+    if (isIOS) return "In Safari: Share → Add to Home Screen.";
+    if (isAndroid) return "In Chrome: ⋮ menu → Install app (or Add to Home screen).";
+    return "Use your browser's Install or Add to Home Screen option.";
+  }
+  function updateInstallUI() {
+    const row = $("#install-row");
+    row.hidden = installed;
+    $("#install-how").textContent = installHow();
+    $("#install-btn").hidden = !installPrompt;
+  }
+  function showBanner() {
+    if (installed || store.get("installDismissed", false)) return;
+    if (inAppBrowser) {
+      $("#install-text").textContent = "To install Hafiz 13, open it in " + (isIOS ? "Safari." : "Chrome.");
+      if (isAndroid) {
+        const a = $("#install-open");
+        a.href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
+        a.hidden = false;
+      }
+      banner.hidden = false;
+    } else if (installPrompt) {
+      $("#install-text").textContent = "Install Hafiz 13 on your phone — it works offline.";
+      $("#install-go").hidden = false;
+      banner.hidden = false;
+    }
+  }
+  async function runInstall() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(() => {});
+    installPrompt = null;
+    banner.hidden = true;
+    updateInstallUI();
+  }
+  addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();          // show our own button instead of Chrome's mini bar
+    installPrompt = e;
+    updateInstallUI();
+    showBanner();
+  });
+  addEventListener("appinstalled", () => { installPrompt = null; banner.hidden = true; store.set("installDismissed", true); });
+  $("#install-go").addEventListener("click", runInstall);
+  $("#install-btn").addEventListener("click", runInstall);
+  $("#install-x").addEventListener("click", () => { banner.hidden = true; store.set("installDismissed", true); });
+  updateInstallUI();
+  showBanner();
+
   // ---------- start ----------
   applyTheme(state.theme);
   document.body.classList.toggle("ruled", state.ruled);

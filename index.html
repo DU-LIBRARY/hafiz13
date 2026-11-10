@@ -42,6 +42,13 @@
     <span id="scrub-label"></span>
   </footer>
 
+  <div id="install-banner" class="install-banner" role="region" aria-label="Install" hidden>
+    <span id="install-text"></span>
+    <a id="install-open" class="install-go" hidden>Open in Chrome</a>
+    <button id="install-go" class="install-go" hidden>Install</button>
+    <button id="install-x" class="install-x" aria-label="Dismiss">×</button>
+  </div>
+
   <dialog id="contents">
     <div class="sheet">
       <div class="sheet-head">
@@ -85,6 +92,10 @@
         <span>Two pages side by side<small>On iPad in landscape, like an open mushaf</small></span>
         <input type="checkbox" id="opt-spread">
       </label>
+      <div class="install-row" id="install-row" hidden>
+        <span>Install on this device<small id="install-how"></small></span>
+        <button id="install-btn" class="install-go" hidden>Install</button>
+      </div>
       <p class="credit">13 lines · Taj Company · 847 pages<br>Text and layout: Quranic Universal Library (Tarteel). IndoPak Nastaleeq font by QuranWBW.</p>
     </div>
   </dialog>
