@@ -32,6 +32,8 @@ body[data-theme="night"] {
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* The bars set their own display, so make sure "hidden" really hides them. */
+[hidden] { display: none !important; }
 html, body {
   margin: 0; height: 100%; overflow: hidden;
   background: var(--paper); color: var(--ink);
