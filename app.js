@@ -20,6 +20,7 @@
     theme: store.get("theme", "paper"),
     spreadPref: store.get("spread", true),
     ruled: store.get("ruled", true),
+    margins: store.get("margins", true),
     bookmarks: store.get("bookmarks", []),   // [{p, t}]
   };
 
@@ -97,10 +98,29 @@
       lines.append(row);
     });
     page.append(lines);
+    if (state.margins && M.marks) page.append(buildMargin(p, used));
     if (state.bookmarks.some((b) => b.p === p)) page.append(el("div", "ribbon"));
     const foot = el("div", "foot", String(p));
     wrap.append(head, page, foot);
     return wrap;
+  }
+
+  const urdu = (n) => String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+
+  /** The outer margin of the printed page: the ruku' sign where each ruku' ends, level with its line. */
+  function buildMargin(p, used) {
+    const margin = el("div", "margin " + (p % 2 ? "outer-right" : "outer-left"));
+    margin.setAttribute("aria-hidden", "true");
+    for (const m of M.marks[p - 1]) {
+      if (m[1] !== "r" || (p <= 2 && m[0] >= used)) continue;
+      // Number in the surah above the ع, ayat in the ruku' below, number in the para at the side.
+      const cell = el("div", "mk"), r = el("div", "ruku");
+      cell.style.gridRow = m[0] + 1;
+      r.append(el("span", "n", urdu(m[2])), el("span", "ain", "ع"), el("span", "n below", urdu(m[3])), el("span", "jn", urdu(m[4])));
+      cell.append(r);
+      margin.append(cell);
+    }
+    return margin;
   }
 
   /** Size the page block and its type so 13 lines fill it the way the printed page does. */
@@ -112,6 +132,7 @@
     // Wide screens keep the printed proportion; tall phone screens use the full width and height.
     const pw = W / avH > PAGE_ASPECT ? avH * PAGE_ASPECT : W;
     wrap.style.setProperty("--pw", pw + "px");
+    wrap.style.setProperty("--mw", (state.margins ? Math.round(Math.min(Math.max(pw * 0.075, 34), 52)) : 0) + "px");
     wrap.style.setProperty("--pw-num", pw);
 
     const lines = wrap.querySelector(".lines");
@@ -121,7 +142,7 @@
 
     // Measure every line at its natural (tight) width.
     const rows = [...lines.querySelectorAll(".line")].filter((r) => r.firstChild && r.firstChild.classList.contains("in"));
-    rows.forEach((r) => { const i = r.firstChild; i.style.width = "max-content"; i.style.justifyContent = "flex-start"; i.style.transform = ""; });
+    rows.forEach((r) => { const i = r.firstChild; i.style.width = "max-content"; i.style.justifyContent = "flex-start"; i.style.transform = ""; i.style.removeProperty("--gap"); });
     const avail = lines.clientWidth;
     let widths = rows.map((r) => r.firstChild.scrollWidth);
     // Size the type so a typical line just fills the width, as the calligrapher does: longer lines are
@@ -140,8 +161,9 @@
     rows.forEach((r, k) => {
       const inner = r.firstChild, w = widths[k];
       if (w > avail) {
-        // Condense a long line rather than ever re-wrapping it.
-        inner.style.transform = `scaleX(${avail / w})`;
+        // Condense a long line rather than ever re-wrapping it: first close up the gaps, then narrow the letters.
+        inner.style.setProperty("--gap", "0.06em");
+        inner.style.transform = `scaleX(${Math.min(1, avail / inner.scrollWidth)})`;
       } else if (r.classList.contains("justify") && w > avail * 0.6) {
         // Widen the letters a little (like kashida), then share out what is left between the words.
         const s = Math.min(avail / w, MAX_STRETCH);
@@ -278,6 +300,7 @@
     settings.querySelector(`input[value="${state.theme}"]`).checked = true;
     $("#opt-spread").checked = state.spreadPref;
     $("#opt-ruled").checked = state.ruled;
+    $("#opt-margins").checked = state.margins;
     settings.showModal();
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -345,6 +368,7 @@
   settings.addEventListener("change", (e) => {
     if (e.target.name === "theme") applyTheme(e.target.value);
     if (e.target.id === "opt-ruled") { state.ruled = e.target.checked; store.set("ruled", state.ruled); document.body.classList.toggle("ruled", state.ruled); }
+    if (e.target.id === "opt-margins") { state.margins = e.target.checked; store.set("margins", state.margins); rerenderAll(); }
     if (e.target.id === "opt-spread") { state.spreadPref = e.target.checked; store.set("spread", state.spreadPref); buildSlots(); }
   });
   function applyTheme(t) {
