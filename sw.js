@@ -1,5 +1,5 @@
 // Offline support: everything the reader needs is cached on first visit.
-const CACHE = "hafiz13-v2";
+const CACHE = "hafiz13-v3";
 const ASSETS = [
   "./", "index.html", "app.css", "app.js", "mushaf.json", "manifest.webmanifest",
   "fonts/indopak.woff2", "fonts/surah-names.woff",
@@ -7,7 +7,11 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -19,7 +23,9 @@ self.addEventListener("activate", (e) => {
 });
 
 function fetchAndStore(req) {
-  return fetch(req).then((res) => {
+  // "no-cache" asks GitHub whether the file changed instead of trusting the browser's
+  // 10-minute HTTP cache, so a fix shows up on the very next open.
+  return fetch(req, { cache: "no-cache" }).then((res) => {
     if (res.ok && new URL(req.url).origin === location.origin) {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(req, copy));
