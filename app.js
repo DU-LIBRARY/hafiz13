@@ -149,11 +149,15 @@
     if (!W || !H) return;
     const headH = 30;
     const avH = H - headH * 2;
-    // Wide screens keep the printed proportion; tall phone screens use the full width and height.
-    const pw = W / avH > PAGE_ASPECT ? avH * PAGE_ASPECT : W;
+    // The page block always keeps the printed proportion, so line spacing never stretches on a tall
+    // phone: spare height becomes space above and below the page.
+    const mw = state.margins ? Math.round(Math.min(Math.max(Math.min(W, avH * PAGE_ASPECT) * 0.075, 34), 52)) : 0;
+    const pageW = Math.min(W - mw, avH * PAGE_ASPECT);
+    const pw = pageW + mw;
     wrap.style.setProperty("--pw", pw + "px");
-    wrap.style.setProperty("--mw", (state.margins ? Math.round(Math.min(Math.max(pw * 0.075, 34), 52)) : 0) + "px");
     wrap.style.setProperty("--pw-num", pw);
+    wrap.style.setProperty("--mw", mw + "px");
+    wrap.style.setProperty("--ph", Math.min(avH, pageW / PAGE_ASPECT) + "px");
 
     const lines = wrap.querySelector(".lines");
     const slotH = lines.clientHeight / LINES;
