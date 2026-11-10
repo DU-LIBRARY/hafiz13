@@ -67,7 +67,7 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 .page-wrap {
   position: relative; direction: ltr;
   width: 100%; height: 100%;
-  display: flex; flex-direction: column; align-items: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .head, .foot {
   flex: 0 0 auto; width: var(--pw, 100%);
@@ -80,8 +80,8 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 
 /* The page block: thin double rule, 13 equal rows */
 .page {
-  position: relative; flex: 1 1 auto;
-  width: var(--pw, 100%);
+  position: relative; flex: 0 0 auto;
+  width: var(--pw, 100%); height: var(--ph, 80%);
   border: 1.5px solid var(--rule);
   padding: 0.8%;
 }
