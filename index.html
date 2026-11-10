@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Hafiz 13</title>
+  <meta name="description" content="13-line IndoPak (Taj Company) Quran reader">
+  <meta name="theme-color" content="#FBF6EA">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Hafiz 13">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preload" href="fonts/indopak.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body data-theme="paper">
+  <main id="book" aria-label="Mushaf pages"></main>
+
+  <div id="loading" role="status">Loading mushaf…</div>
+
+  <header id="topbar" class="chrome" hidden>
+    <button id="btn-contents" class="icon" aria-label="Contents">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="title">
+      <strong id="t-surah"></strong>
+      <span id="t-sub"></span>
+    </div>
+    <button id="btn-bookmark" class="icon" aria-label="Bookmark page">
+      <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+    </button>
+    <button id="btn-settings" class="icon" aria-label="Display settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+    </button>
+  </header>
+
+  <footer id="bottombar" class="chrome" hidden>
+    <input id="scrub" type="range" min="1" max="847" step="1" dir="rtl" aria-label="Page">
+    <span id="scrub-label"></span>
+  </footer>
+
+  <dialog id="contents">
+    <div class="sheet">
+      <div class="sheet-head">
+        <button class="text" data-close>Close</button>
+        <strong>Contents</strong>
+        <form id="goto" class="goto">
+          <input id="goto-page" inputmode="numeric" pattern="[0-9]*" placeholder="Page" aria-label="Go to page">
+          <button class="text">Go</button>
+        </form>
+      </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="surah" aria-selected="true">Surah</button>
+        <button role="tab" data-tab="juz" aria-selected="false">Juz</button>
+        <button role="tab" data-tab="bookmarks" aria-selected="false">Bookmarks</button>
+      </div>
+      <input id="search" type="search" placeholder="Surah name or number" aria-label="Search surahs">
+      <ul id="list" class="list"></ul>
+    </div>
+  </dialog>
+
+  <dialog id="settings">
+    <div class="sheet small">
+      <div class="sheet-head">
+        <span></span><strong>Display</strong><button class="text" data-close>Done</button>
+      </div>
+      <fieldset class="seg" id="theme-seg">
+        <legend>Page colour</legend>
+        <label><input type="radio" name="theme" value="paper"><span>Paper</span></label>
+        <label><input type="radio" name="theme" value="white"><span>White</span></label>
+        <label><input type="radio" name="theme" value="night"><span>Night</span></label>
+      </fieldset>
+      <label class="toggle">
+        <span>Two pages side by side<small>On iPad in landscape, like an open mushaf</small></span>
+        <input type="checkbox" id="opt-spread">
+      </label>
+      <p class="credit">13 lines · Taj Company · 847 pages<br>Text and layout: Quranic Universal Library (Tarteel). IndoPak Nastaleeq font by QuranWBW.</p>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
