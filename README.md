@@ -1,6 +1,6 @@
-# Hafiz 13
+# Quran
 
-A clean 13-line IndoPak Quran reader (Taj Company layout, 847 pages) for iPhone and iPad, as an installable web app.
+A clean 13-line IndoPak Quran reader (Taj Company layout, 847 pages) for iPhone, iPad and Android, as an installable web app.
 
 - Every page is 13 lines, laid out line-for-line like the printed hafizi mushaf, with ruled lines and close word spacing.
 - Margin notes as printed: ruku' (ع with its number in the surah, ayat in the ruku' and number in the para), ربع / نصف / ثلثة, para, manzil and sajdah.

@@ -1,4 +1,4 @@
-/* Hafiz 13 — 13-line IndoPak (Taj Company) mushaf reader. No build step, no dependencies. */
+/* Quran — 13-line IndoPak (Taj Company) mushaf reader. No build step, no dependencies. */
 (() => {
   "use strict";
 
@@ -411,7 +411,7 @@
     if (installed) return "";
     if (inAppBrowser) return isIOS ? "Open this page in Safari first (share menu → Open in Safari), then Share → Add to Home Screen."
                                    : "Open this page in Chrome first (⋮ menu → Open in Chrome), then tap Install.";
-    if (installPrompt) return "Adds Hafiz 13 to your home screen and works offline.";
+    if (installPrompt) return "Adds the Quran app to your home screen and works offline.";
     if (isIOS) return "In Safari: Share → Add to Home Screen.";
     if (isAndroid) return "In Chrome: ⋮ menu → Install app (or Add to Home screen).";
     return "Use your browser's Install or Add to Home Screen option.";
@@ -425,7 +425,7 @@
   function showBanner() {
     if (installed || store.get("installDismissed", false)) return;
     if (inAppBrowser) {
-      $("#install-text").textContent = "To install Hafiz 13, open it in " + (isIOS ? "Safari." : "Chrome.");
+      $("#install-text").textContent = "To install the Quran app, open it in " + (isIOS ? "Safari." : "Chrome.");
       if (isAndroid) {
         const a = $("#install-open");
         a.href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
@@ -433,7 +433,7 @@
       }
       banner.hidden = false;
     } else if (installPrompt) {
-      $("#install-text").textContent = "Install Hafiz 13 on your phone — it works offline.";
+      $("#install-text").textContent = "Install the Quran app on your phone — it works offline.";
       $("#install-go").hidden = false;
       banner.hidden = false;
     }

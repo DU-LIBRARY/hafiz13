@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Hafiz 13",
-  "short_name": "Hafiz 13",
+  "name": "Quran",
+  "short_name": "Quran",
   "description": "13-line IndoPak (Taj Company) Quran reader",
   "start_url": "./",
   "scope": "./",
