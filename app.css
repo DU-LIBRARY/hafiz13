@@ -118,6 +118,9 @@ body.chrome-on .slot { padding-top: 0; padding-bottom: 0; }
 .ruku .below { grid-area: b; margin-top: 0.3em; }
 .ruku .ain { grid-area: ain; font-size: 1.6em; line-height: 1.05; }
 .ruku .jn { grid-area: jn; font-size: 0.56em; opacity: 0.85; padding: 0 0.15em; }
+.lbl { font-family: var(--ui); font-size: 0.72em; font-weight: 600; display: flex; flex-direction: column; align-items: center; white-space: nowrap; line-height: 1.1; }
+.lbl .big { font-size: 1.45em; }
+.lbl.para, .lbl.sajdah { color: var(--ribbon); }
 .page.opening .lines { align-content: center; grid-template-rows: repeat(var(--used, 13), calc(100% / 13)); }
 
 .line { position: relative; display: flex; align-items: center; justify-content: flex-start; min-width: 0; overflow: visible; }
