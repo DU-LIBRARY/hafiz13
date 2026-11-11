@@ -21,6 +21,7 @@
     spreadPref: store.get("spread", true),
     ruled: store.get("ruled", true),
     margins: store.get("margins", true),
+    edgeTap: store.get("edgeTap", true),
     bookmarks: store.get("bookmarks", []),   // [{p, t}]
   };
 
@@ -270,11 +271,15 @@
     }, 120);
   });
 
+  // Forward is to the left, as in a mushaf.
+  function nextPage() { goTo(pagesOfSlot(Math.min(slotCount - 1, currentSlot + 1))[0]); }
+  function prevPage() { goTo(pagesOfSlot(Math.max(0, currentSlot - 1))[0]); }
+
   // Keyboard (iPad keyboards, desktop): left arrow = next page, as in a mushaf.
   addEventListener("keydown", (e) => {
     if (document.querySelector("dialog[open]")) return;
-    if (e.key === "ArrowLeft") goTo(pagesOfSlot(Math.min(slotCount - 1, currentSlot + 1))[0]);
-    if (e.key === "ArrowRight") goTo(pagesOfSlot(Math.max(0, currentSlot - 1))[0]);
+    if (e.key === "ArrowLeft") nextPage();
+    if (e.key === "ArrowRight") prevPage();
   });
 
   // ---------- chrome ----------
@@ -294,7 +299,16 @@
     }
     refitAll();
   }
-  book.addEventListener("click", () => showChrome(!chromeOn));
+  // Tap the left edge to turn forward, the right edge to go back; tap the middle to show or hide the bars.
+  const EDGE = 0.25;
+  book.addEventListener("click", (e) => {
+    if (state.edgeTap) {
+      const x = e.clientX / innerWidth;
+      if (x < EDGE) { nextPage(); return; }
+      if (x > 1 - EDGE) { prevPage(); return; }
+    }
+    showChrome(!chromeOn);
+  });
 
   function updateChrome() {
     if (!M) return;
@@ -330,6 +344,7 @@
     $("#opt-spread").checked = state.spreadPref;
     $("#opt-ruled").checked = state.ruled;
     $("#opt-margins").checked = state.margins;
+    $("#opt-edgetap").checked = state.edgeTap;
     settings.showModal();
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -404,6 +419,7 @@
     if (e.target.name === "theme") applyTheme(e.target.value);
     if (e.target.id === "opt-ruled") { state.ruled = e.target.checked; store.set("ruled", state.ruled); document.body.classList.toggle("ruled", state.ruled); }
     if (e.target.id === "opt-margins") { state.margins = e.target.checked; store.set("margins", state.margins); rerenderAll(); }
+    if (e.target.id === "opt-edgetap") { state.edgeTap = e.target.checked; store.set("edgeTap", state.edgeTap); }
     if (e.target.id === "opt-spread") { state.spreadPref = e.target.checked; store.set("spread", state.spreadPref); buildSlots(); }
   });
   function applyTheme(t) {
