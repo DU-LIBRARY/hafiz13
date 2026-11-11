@@ -22,6 +22,7 @@
     ruled: store.get("ruled", true),
     margins: store.get("margins", true),
     edgeTap: store.get("edgeTap", true),
+    fill: store.get("fill", false),
     bookmarks: store.get("bookmarks", []),   // [{p, t}]
   };
 
@@ -155,15 +156,17 @@
     if (!W || !H) return;
     const headH = 30;
     const avH = H - headH * 2;
-    // The page block always keeps the printed proportion, so line spacing never stretches on a tall
-    // phone: spare height becomes space above and below the page.
+    // By default the page block keeps the printed proportion, so line spacing never stretches on a
+    // tall phone: spare height becomes space above and below the page. With "Fill the screen" on, the
+    // page takes the full height instead; the letters keep their size and shape and only the space
+    // between the lines grows, so nothing looks stretched.
     const mw = state.margins ? Math.round(Math.min(Math.max(Math.min(W, avH * PAGE_ASPECT) * 0.075, 34), 52)) : 0;
     const pageW = Math.min(W - mw, avH * PAGE_ASPECT);
     const pw = pageW + mw;
     wrap.style.setProperty("--pw", pw + "px");
     wrap.style.setProperty("--pw-num", pw);
     wrap.style.setProperty("--mw", mw + "px");
-    wrap.style.setProperty("--ph", Math.min(avH, pageW / PAGE_ASPECT) + "px");
+    wrap.style.setProperty("--ph", (state.fill ? avH : Math.min(avH, pageW / PAGE_ASPECT)) + "px");
 
     const lines = wrap.querySelector(".lines");
     const slotH = lines.clientHeight / LINES;
@@ -345,6 +348,7 @@
     $("#opt-ruled").checked = state.ruled;
     $("#opt-margins").checked = state.margins;
     $("#opt-edgetap").checked = state.edgeTap;
+    $("#opt-fill").checked = state.fill;
     settings.showModal();
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -419,6 +423,7 @@
     if (e.target.name === "theme") applyTheme(e.target.value);
     if (e.target.id === "opt-ruled") { state.ruled = e.target.checked; store.set("ruled", state.ruled); document.body.classList.toggle("ruled", state.ruled); }
     if (e.target.id === "opt-margins") { state.margins = e.target.checked; store.set("margins", state.margins); rerenderAll(); }
+    if (e.target.id === "opt-fill") { state.fill = e.target.checked; store.set("fill", state.fill); refitAll(); }
     if (e.target.id === "opt-edgetap") { state.edgeTap = e.target.checked; store.set("edgeTap", state.edgeTap); }
     if (e.target.id === "opt-spread") { state.spreadPref = e.target.checked; store.set("spread", state.spreadPref); buildSlots(); }
   });
