@@ -46,6 +46,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* ---------- Book: one horizontal snap scroller, right to left ---------- */
 #book {
   position: fixed; inset: 0;
+  touch-action: manipulation;   /* no double-tap-to-zoom wait, so taps act at once */
   display: flex; direction: rtl;
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory;

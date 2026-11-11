@@ -241,7 +241,10 @@
     const i = slotOfPage(p);
     for (let k = i - 2; k <= i + 2; k++) renderSlot(k);
     // In a right-to-left scroller, scrollLeft runs from 0 down to negative values.
-    book.scrollTo({ left: -i * book.clientWidth, behavior: smooth && Math.abs(i - currentSlot) <= 2 ? "smooth" : "instant" });
+    const anim = smooth && Math.abs(i - currentSlot) <= 2;
+    book.scrollTo({ left: -i * book.clientWidth, behavior: anim ? "smooth" : "instant" });
+    // An instant jump made while a swipe is still sliding: set it again next frame so the old slide can't carry on.
+    if (!anim) requestAnimationFrame(() => book.scrollTo({ left: -i * book.clientWidth, behavior: "instant" }));
     setSlot(i, p);
   }
 
@@ -255,14 +258,26 @@
     updateChrome();
   }
 
-  let scrollRaf = 0;
+  let scrollRaf = 0, settleT = 0, touching = false;
+  /** Once scrolling stops, make sure the book rests exactly on a page, never between two. */
+  function settle() {
+    if (touching) return;
+    const i = Math.round(Math.abs(book.scrollLeft) / book.clientWidth);
+    const target = -i * book.clientWidth;
+    if (Math.abs(book.scrollLeft - target) > 1) book.scrollTo({ left: target, behavior: "instant" });
+  }
   book.addEventListener("scroll", () => {
     cancelAnimationFrame(scrollRaf);
     scrollRaf = requestAnimationFrame(() => {
       const i = Math.round(Math.abs(book.scrollLeft) / book.clientWidth);
       if (i !== currentSlot && i >= 0 && i < slotCount) setSlot(i);
     });
+    clearTimeout(settleT);
+    settleT = setTimeout(settle, 180);
   }, { passive: true });
+  book.addEventListener("touchstart", () => { touching = true; }, { passive: true });
+  book.addEventListener("touchend", () => { touching = false; clearTimeout(settleT); settleT = setTimeout(settle, 180); }, { passive: true });
+  book.addEventListener("touchcancel", () => { touching = false; }, { passive: true });
 
   let resizeT = 0;
   addEventListener("resize", () => {
@@ -275,8 +290,10 @@
   });
 
   // Forward is to the left, as in a mushaf.
-  function nextPage() { goTo(pagesOfSlot(Math.min(slotCount - 1, currentSlot + 1))[0]); }
-  function prevPage() { goTo(pagesOfSlot(Math.max(0, currentSlot - 1))[0]); }
+  // Taps and keys turn the page instantly: a sliding animation could be cut short by a quick second
+  // tap and leave the book stuck between two pages. Swiping keeps its natural slide.
+  function nextPage() { goTo(pagesOfSlot(Math.min(slotCount - 1, currentSlot + 1))[0], false); }
+  function prevPage() { goTo(pagesOfSlot(Math.max(0, currentSlot - 1))[0], false); }
 
   // Keyboard (iPad keyboards, desktop): left arrow = next page, as in a mushaf.
   addEventListener("keydown", (e) => {
