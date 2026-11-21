@@ -6,6 +6,7 @@ A clean 13-line IndoPak Quran reader (Taj Company layout, 847 pages) for iPhone,
 - Margin notes as printed: ruku' (ع with its number in the surah, ayat in the ruku' and number in the para), ربع / نصف / ثلثة, para, manzil and sajdah.
 - Swipe left-to-right to turn forward, like a real mushaf; two facing pages on iPad in landscape.
 - Surah / juz / page navigation, bookmarks, Paper / White / Night themes.
+- Verse search (magnifier in the top bar): type Arabic words — vowels and spelling differences are ignored, so a plain "الصلاة" finds "الصَّلٰوةَ" — or a reference like `2:255`, `Yasin 12` or `Kahf`. Tap a result to open its page with the verse highlighted.
 - Works offline once opened. No accounts, no tracking.
 
 ## Margin marks

@@ -137,7 +137,9 @@ body.ruled .page:not(.opening) .line:not(:last-child):not(.blank)::after {
   border-bottom: 0.75px solid var(--rule); opacity: 0.55; pointer-events: none;
 }
 .line.center .in { transform-origin: center center; }
-.w { display: inline-block; }
+.w { display: inline-block; border-radius: 0.2em; transition: background-color 0.8s ease; }
+/* The verse opened from a search, highlighted for a few seconds. */
+.w.hl { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 /* Waqf signs sit in the gap between words; give them room so they never land on a letter. */
 .mark { display: inline-block; padding-left: 0.3em; }
 
@@ -238,6 +240,23 @@ dialog[open] { animation: up 0.22s cubic-bezier(.2, .8, .2, 1); }
   border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit;
   -webkit-user-select: text; user-select: text;
 }
+.find-form { display: flex; }
+#find-q {
+  flex: 1; min-width: 0; margin: 4px 16px 6px; font: inherit; font-size: 17px; padding: 10px 12px;
+  border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit;
+  -webkit-user-select: text; user-select: text;
+}
+#find-q:dir(rtl) { font-family: "IndoPak", serif; font-size: 20px; padding: 6px 12px; }
+.list.verses { overflow-x: hidden; }
+.list.verses button.verse { min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 18px; }
+.list.verses .ref { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.list.verses .ar {
+  font-size: 22px; line-height: 1.9; text-align: right;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.list .count { padding: 8px 18px; font-size: 12.5px; color: var(--muted); }
+.list.verses .empty { line-height: 1.6; }
+
 .list { list-style: none; margin: 0; padding: 0 0 20px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
 .list li { border-bottom: 1px solid var(--line); }
 .list button {
