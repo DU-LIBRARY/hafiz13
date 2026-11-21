@@ -31,6 +31,8 @@
   let slotCount = 0;
   let currentSlot = -1;
   const rendered = new Map();   // slot index -> true
+  let highlight = null;         // { s, a } ayah shown highlighted after a verse search
+  let highlightT = 0;
 
   // ---------- lookups ----------
   const pageCount = () => M.pages.length;
@@ -43,6 +45,31 @@
     if (M.surahs[n][4] === p && n > 0 && !(Array.isArray(first) && typeof first[0] === "number" && first[0] === n + 1)) n -= 1;
     return n + 1;
   }
+  // ---------- ayahs ----------
+  // An ayah ends on a token made only of marks that carries the end-of-ayah sign (as in tools/build_marks.py).
+  const isAyahEnd = (w) => MARK_ONLY.test(w) && (w.includes("\u06DF") || [...w].some((c) => c.charCodeAt(0) >= 0xF500 && c.charCodeAt(0) <= 0xF61D));
+  const lineWords = (line) => (Array.isArray(line) && typeof line[0] !== "number" ? line : line && line.w ? line.w : null);
+  let verses = [];              // [{ s, a, p, l, words }] in mushaf order
+  let pageStart = [];           // [surah, ayahs finished] at the top of each page
+  const verseIndex = new Map(); // "s:a" -> verse
+
+  function indexAyahs() {
+    let s = 0, a = 0, cur = null;
+    M.pages.forEach((pg, pi) => {
+      pageStart[pi] = [s, a];
+      pg.forEach((line, li) => {
+        if (Array.isArray(line) && typeof line[0] === "number") { s = line[0]; a = 0; cur = null; return; }
+        const ws = lineWords(line);
+        if (!ws) return;
+        for (const w of ws) {
+          if (!cur) { cur = { s, a: a + 1, p: pi + 1, l: li, words: [] }; verses.push(cur); verseIndex.set(s + ":" + cur.a, cur); }
+          cur.words.push(w);
+          if (isAyahEnd(w)) { a++; cur = null; }
+        }
+      });
+    });
+  }
+
   const slotOfPage = (p) => (spread ? Math.floor((p - 1) / 2) : p - 1);
   const pagesOfSlot = (i) => (spread ? [i * 2 + 1, i * 2 + 2].filter((p) => p <= pageCount()) : [i + 1]);
 
@@ -73,6 +100,7 @@
     const lines = el("div", "lines");
     lines.lang = "ar";
     const data = M.pages[p - 1];
+    let [as, aa] = pageStart[p - 1];
     let used = LINES;
     while (used > 0 && data[used - 1] === 0) used--;
     if (p <= 2) page.style.setProperty("--used", used);
@@ -88,6 +116,7 @@
       } else if (Array.isArray(line) && typeof line[0] === "number") {
         const band = el("div", "surah-band");
         band.append(el("span", "", "surah" + String(line[0]).padStart(3, "0") + " surah-icon"));
+        as = line[0]; aa = 0;
         row.append(band);
         row.classList.add("header");
       } else {
@@ -95,7 +124,12 @@
         const centered = !Array.isArray(line) || p <= 2;
         row.classList.add(centered ? "center" : "justify");
         const inner = el("div", "in");
-        for (const w of words) inner.append(wordEl(w));
+        for (const w of words) {
+          const e = wordEl(w), end = isAyahEnd(w);
+          if (highlight && highlight.s === as && highlight.a === aa + 1) e.classList.add("hl");
+          if (end) aa++;
+          inner.append(e);
+        }
         row.append(inner);
       }
       lines.append(row);
@@ -353,9 +387,9 @@
   });
 
   // ---------- dialogs ----------
-  const contents = $("#contents"), settings = $("#settings");
+  const contents = $("#contents"), settings = $("#settings"), find = $("#find");
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
-  [contents, settings].forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+  [contents, settings, find].forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
   let tab = "surah";
   $("#btn-contents").addEventListener("click", () => { $("#search").value = ""; renderList(); contents.showModal(); scrollToCurrent(); });
@@ -383,6 +417,123 @@
 
   function open(p) { contents.close(); showChrome(false); goTo(p, false); }
 
+  // Ignore case, spaces, hyphens and apostrophes: "yasin", "ya sin" and "Ya-Sin" all match.
+  // A leading "al-", "an-", "ali" etc. is optional too, so "al imran" finds "Ali 'Imran".
+  const norm = (s) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, "");
+  const ARTICLES = ["aale", "aal", "ali", "ash", "adh", "al", "an", "ar", "as", "at", "ad", "az"];
+  const bare = (s) => [s, ...ARTICLES.filter((a) => s.startsWith(a) && s.length - a.length >= 2).map((a) => s.slice(a.length))];
+  const startsLike = (name, q) => { const qs = bare(q); return bare(name).some((v) => qs.some((x) => v.startsWith(x))); };
+  /** Does surah index i match a normalized query q (number, English, translation or Arabic name)? */
+  function surahMatches(i, q) {
+    const [en, ar, tr] = M.surahs[i];
+    return String(i + 1) === q || norm(en).includes(q) || startsLike(norm(en), q) || norm(tr).includes(q) || norm(ar).includes(q);
+  }
+
+  // ---------- verse search ----------
+  // Arabic is matched on its bare letters: vowels, waqf signs and other marks are ignored, letter
+  // variants are folded together (ی/ي/ى, ك/ک, ة/ه, أ/إ/آ/ا…), alifs and spaces are dropped. So a
+  // plainly typed "الرحمن" finds the IndoPak "الرَّحْمٰنِ", and "الصلاة" finds "الصَّلٰوةَ".
+  const ARABIC_FOLD = { "أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ی": "ي", "ئ": "ي", "ے": "ي", "ؤ": "و", "ة": "ه", "ۃ": "ه", "ہ": "ه", "ۂ": "ه", "ھ": "ه", "ک": "ك", "ء": "" };
+  function arabicKey(t) {
+    return t
+      .replace(/\u0670و/g, "")                       // IndoPak small alif + و reads as a long a (صلٰوة = صلاة)
+      .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640\uE000-\uF8FF]/g, "")
+      .replace(/[أإآٱىیئےؤةۃہۂھکء]/g, (c) => ARABIC_FOLD[c])
+      .replace(/[^\u0621-\u064A]/g, "")
+      .replace(/ا/g, "");
+  }
+  let keysReady = false;
+  function verseKeys() {
+    if (keysReady) return;
+    for (const v of verses) v.key = arabicKey(v.words.join(""));
+    keysReady = true;
+  }
+  const verseText = (v) => v.words.filter((w) => !MARK_ONLY.test(w)).join(" ");
+  const MAX_RESULTS = 60;
+
+  /** Verses for a query: "2:255", "2 255", "Baqarah 255", "Yasin" (the whole surah) or Arabic words. */
+  function findVerses(raw) {
+    const q = raw.trim();
+    if (!q) return { list: [], total: 0 };
+    let m = q.match(/^(\d{1,3})\s*[:.\s-]\s*(\d{1,3})$/);
+    if (m) { const v = verseIndex.get(+m[1] + ":" + +m[2]); return { list: v ? [v] : [], total: v ? 1 : 0 }; }
+    if (/^[\sa-z0-9'’`\-:.]+$/i.test(q)) {
+      // A surah by number or name, optionally followed by an ayah number.
+      m = q.match(/^(.*?)[\s:.]*(\d{1,3})?$/);
+      const name = norm(m[1]), ayah = m[2] && m[1].trim() ? +m[2] : 0;
+      let si = -1;
+      if (!m[1].trim() && m[2]) si = +m[2] - 1;
+      else if (name) { si = M.surahs.findIndex((x, i) => norm(x[0]) === name); if (si < 0) si = M.surahs.findIndex((x, i) => surahMatches(i, name)); }
+      if (si < 0 || si >= M.surahs.length) return { list: [], total: 0 };
+      if (ayah) { const v = verseIndex.get(si + 1 + ":" + ayah); return { list: v ? [v] : [], total: v ? 1 : 0 }; }
+      const all = verses.filter((v) => v.s === si + 1);
+      return { list: all, total: all.length };
+    }
+    const key = arabicKey(q);
+    if (key.length < 2) return { list: [], total: 0 };
+    verseKeys();
+    const list = [];
+    let total = 0;
+    for (const v of verses) if (v.key.includes(key)) { total++; if (list.length < MAX_RESULTS) list.push(v); }
+    return { list, total };
+  }
+
+  function renderFind() {
+    const list = $("#find-list"), q = $("#find-q").value;
+    const { list: found, total } = findVerses(q);
+    list.replaceChildren();
+    if (!q.trim()) {
+      list.append(el("li", "empty", "Type Arabic words, e.g. الرحمن الرحيم — or a reference: 2:255, Yasin 12, Kahf."));
+      return;
+    }
+    if (!found.length) { list.append(el("li", "empty", "No verses found.")); return; }
+    if (total > found.length) list.append(el("li", "count", `Showing the first ${found.length} of ${total} verses — type more to narrow it down.`));
+    else list.append(el("li", "count", total === 1 ? "1 verse" : `${total} verses`));
+    for (const v of found) {
+      const li = el("li"), b = el("button", "verse");
+      const ref = el("span", "ref");
+      ref.append(el("span", "name", `${M.surahs[v.s - 1][0]} ${v.s}:${v.a}`), el("span", "pg", "p. " + v.p));
+      const ar = el("span", "ar", verseText(v));
+      ar.lang = "ar"; ar.dir = "rtl";
+      b.append(ref, ar);
+      b.addEventListener("click", () => openVerse(v));
+      li.append(b);
+      list.append(li);
+    }
+  }
+
+  /** Go to a verse's page and highlight it for a few seconds. */
+  function openVerse(v) {
+    find.close();
+    contents.close();
+    showChrome(false);
+    clearTimeout(highlightT);
+    highlight = { s: v.s, a: v.a };
+    // Re-draw the verse's page (and the next, where a verse can run on) with the highlight.
+    const i = slotOfPage(v.p);
+    rendered.delete(i); rendered.delete(i + 1);
+    goTo(v.p, false);
+    highlightT = setTimeout(() => {
+      book.querySelectorAll(".w.hl").forEach((e) => e.classList.remove("hl"));
+      highlight = null;
+    }, 4000);
+  }
+
+  let findT = 0;
+  $("#find-q").addEventListener("input", () => { clearTimeout(findT); findT = setTimeout(renderFind, 120); });
+  $("#find-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    clearTimeout(findT); renderFind();
+    const first = $("#find-list button.verse");
+    if (first) first.click();
+  });
+  $("#btn-find").addEventListener("click", () => {
+    renderFind();
+    find.showModal();
+    $("#find-q").focus();
+    $("#find-q").select();
+  });
+
   function row(n, name, sub, ar, pg, current, onClick) {
     const li = el("li"), b = el("button", current ? "current" : "");
     const left = el("span", "n", n);
@@ -399,17 +550,11 @@
     list.replaceChildren();
     const p = state.page;
     if (tab === "surah") {
-      // Ignore case, spaces, hyphens and apostrophes: "yasin", "ya sin" and "Ya-Sin" all match.
-      // A leading "al-", "an-", "ali" etc. is optional too, so "al imran" finds "Ali 'Imran".
-      const norm = (s) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, "");
-      const ARTICLES = ["aale", "aal", "ali", "ash", "adh", "al", "an", "ar", "as", "at", "ad", "az"];
-      const bare = (s) => [s, ...ARTICLES.filter((a) => s.startsWith(a) && s.length - a.length >= 2).map((a) => s.slice(a.length))];
-      const startsLike = (name, q) => { const qs = bare(q); return bare(name).some((v) => qs.some((x) => v.startsWith(x))); };
       const q = norm($("#search").value);
       const cur = surahOf(p);
       M.surahs.forEach(([en, ar, tr, v, start], i) => {
         const n = i + 1;
-        if (q && !(String(n) === q || norm(en).includes(q) || startsLike(norm(en), q) || norm(tr).includes(q) || norm(ar).includes(q))) return;
+        if (q && !surahMatches(i, q)) return;
         list.append(row(n, en, `${tr} · ${v} ayat`, ar, start, n === cur, () => open(start)));
       });
     } else if (tab === "juz") {
@@ -521,6 +666,7 @@
     document.fonts.load('24px "SurahNames"', "surah001"),
   ]).then(([data]) => {
     M = data;
+    indexAyahs();
     scrub.max = pageCount();
     $("#loading").remove();
     buildSlots();

@@ -29,6 +29,9 @@
       <strong id="t-surah"></strong>
       <span id="t-sub"></span>
     </div>
+    <button id="btn-find" class="icon" aria-label="Search verses">
+      <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+    </button>
     <button id="btn-bookmark" class="icon" aria-label="Bookmark page">
       <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
     </button>
@@ -66,6 +69,19 @@
       </div>
       <input id="search" type="search" placeholder="Surah name or number" aria-label="Search surahs">
       <ul id="list" class="list"></ul>
+    </div>
+  </dialog>
+
+  <dialog id="find">
+    <div class="sheet">
+      <div class="sheet-head">
+        <span></span><strong>Search verses</strong><button class="text" data-close>Close</button>
+      </div>
+      <form id="find-form" class="find-form">
+        <input id="find-q" type="search" dir="auto" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               enterkeyhint="search" placeholder="Arabic words or 2:255" aria-label="Search verses">
+      </form>
+      <ul id="find-list" class="list verses"></ul>
     </div>
   </dialog>
 
