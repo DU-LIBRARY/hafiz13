@@ -320,3 +320,45 @@ dialog[open] { animation: up 0.22s cubic-bezier(.2, .8, .2, 1); }
 }
 .install-row small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 body.chrome-on .install-banner { display: none; }
+
+/* ---------- Pencil ---------- */
+#book { -webkit-touch-callout: none; }
+/* Without a pencil, a finger writes while the tools are open, so the book must not swipe. */
+body.ink-finger #book { touch-action: none; }
+.ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Highlights sit under the text (drawn solid, shown see-through, so overlaps don't darken); pen on top. */
+.ink-lo { z-index: -1; opacity: 0.42; }
+body[data-theme="night"] .ink-lo { opacity: 0.32; }
+.ink-hi { z-index: 3; }
+body.ink-hidden .ink { display: none; }
+#btn-ink.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+#btn-ink.on svg { fill: none; }
+
+.inkbar {
+  position: fixed; z-index: 6; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  max-width: calc(100vw - 16px);
+  display: flex; align-items: center; gap: 4px; padding: 6px 8px 6px 6px;
+  background: var(--bar); color: var(--ink);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+  animation: fade 0.18s ease-out;
+}
+.inkbar .icon { width: 38px; height: 38px; }
+.inkbar .icon.sel { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.inkbar .sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--line); }
+.inkbar .text { padding: 6px 6px 6px 4px; }
+.swatches { display: flex; gap: 2px; }
+.swatch { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+.swatch::before {
+  content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.swatch.hl::before { width: 22px; height: 14px; border-radius: 4px; opacity: 0.75; }
+.swatch.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+@media (max-width: 400px) {
+  .inkbar { gap: 1px; padding: 4px 6px 4px 4px; }
+  .inkbar .icon { width: 34px; height: 34px; }
+  .swatch { width: 28px; height: 28px; }
+  .inkbar .sep { margin: 6px 1px; }
+}

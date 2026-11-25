@@ -239,6 +239,7 @@
         if (s > 1.001) inner.style.transform = `scaleX(${s})`;
       }
     });
+    syncInk(wrap);
   }
 
   function renderSlot(i) {
@@ -318,7 +319,7 @@
     clearTimeout(resizeT);
     resizeT = setTimeout(() => {
       if (wantSpread() !== spread) buildSlots();
-      if (chromeOn) showChrome(true); else refitAll();
+      layoutBook();
       book.scrollTo({ left: -currentSlot * book.clientWidth, behavior: "instant" });
     }, 120);
   });
@@ -332,6 +333,8 @@
   // Keyboard (iPad keyboards, desktop): left arrow = next page, as in a mushaf.
   addEventListener("keydown", (e) => {
     if (document.querySelector("dialog[open]")) return;
+    if (palOpen && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undoInk(); return; }
+    if (palOpen && e.key === "Escape") { closePalette(); return; }
     if (e.key === "ArrowLeft") nextPage();
     if (e.key === "ArrowRight") prevPage();
   });
@@ -344,18 +347,26 @@
     chromeOn = on;
     top.hidden = !on; bottom.hidden = !on;
     document.body.classList.toggle("chrome-on", on);
-    if (on) {
-      const t = top.getBoundingClientRect(), b = bottom.getBoundingClientRect();
-      book.style.top = Math.ceil(t.bottom + 4) + "px";
-      book.style.bottom = Math.ceil(innerHeight - b.top + 4) + "px";
-    } else {
-      book.style.top = ""; book.style.bottom = "";
+    layoutBook();
+  }
+  /** Fit the book between whatever bars are showing (top bar, bottom bar, pencil tools). */
+  function layoutBook() {
+    let t = 0, b = 0;
+    if (chromeOn) {
+      t = top.getBoundingClientRect().bottom + 4;
+      b = innerHeight - bottom.getBoundingClientRect().top + 4;
     }
+    // The pencil tools sit just above the bottom bar when both show.
+    inkbar.style.bottom = chromeOn && palOpen ? Math.ceil(b + 4) + "px" : "";
+    if (palOpen) b = Math.max(b, innerHeight - inkbar.getBoundingClientRect().top + 4);
+    book.style.top = t ? Math.ceil(t) + "px" : "";
+    book.style.bottom = b ? Math.ceil(b) + "px" : "";
     refitAll();
   }
   // Tap the left edge to turn forward, the right edge to go back; tap the middle to show or hide the bars.
   const EDGE = 0.25;
   book.addEventListener("click", (e) => {
+    if (performance.now() < ignoreClickUntil) return;   // the end of a pencil stroke, not a tap
     if (state.edgeTap) {
       const x = e.clientX / innerWidth;
       if (x < EDGE) { nextPage(); return; }
@@ -400,6 +411,7 @@
     $("#opt-margins").checked = state.margins;
     $("#opt-edgetap").checked = state.edgeTap;
     $("#opt-fill").checked = state.fill;
+    $("#opt-ink").checked = inkState.show;
     settings.showModal();
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -560,6 +572,16 @@
     } else if (tab === "juz") {
       const cur = juzOf(p);
       M.juz.forEach((start, i) => list.append(row(i + 1, "Juz " + (i + 1), M.surahs[surahOf(start) - 1][0], "", start, i + 1 === cur, () => open(start))));
+    } else if (tab === "notes") {
+      const pages = [...inks.keys()].filter((q) => inks.get(q).length).sort((a, b) => a - b);
+      if (!pages.length) {
+        list.append(el("li", "empty", "No pencil notes yet. Write on a page with Apple Pencil, or tap the pencil button to use a finger."));
+        return;
+      }
+      for (const q of pages) {
+        const n = inks.get(q).length;
+        list.append(row("", "Page " + q, `${M.surahs[surahOf(q) - 1][0]} · Juz ${juzOf(q)} · ${n} ${n === 1 ? "mark" : "marks"}`, "", q, q === p, () => open(q)));
+      }
     } else {
       if (!state.bookmarks.length) {
         list.append(el("li", "empty", "No bookmarks yet. Tap a page, then the bookmark button."));
@@ -586,6 +608,7 @@
     if (e.target.id === "opt-ruled") { state.ruled = e.target.checked; store.set("ruled", state.ruled); document.body.classList.toggle("ruled", state.ruled); }
     if (e.target.id === "opt-margins") { state.margins = e.target.checked; store.set("margins", state.margins); rerenderAll(); }
     if (e.target.id === "opt-fill") { state.fill = e.target.checked; store.set("fill", state.fill); refitAll(); }
+    if (e.target.id === "opt-ink") { inkState.show = e.target.checked; store.set("inkShow", inkState.show); document.body.classList.toggle("ink-hidden", !inkState.show); }
     if (e.target.id === "opt-edgetap") { state.edgeTap = e.target.checked; store.set("edgeTap", state.edgeTap); }
     if (e.target.id === "opt-spread") { state.spreadPref = e.target.checked; store.set("spread", state.spreadPref); buildSlots(); }
   });
@@ -594,7 +617,303 @@
     document.body.dataset.theme = t;
     const c = getComputedStyle(document.body).getPropertyValue("--paper").trim();
     document.querySelector('meta[name="theme-color"]').setAttribute("content", c);
+    book.querySelectorAll(".page-wrap").forEach((w) => redrawInk(w));   // "ink"-coloured pen follows the theme
   }
+
+  // ---------- pencil: write in the margins, mark and highlight mistakes ----------
+  // Apple Pencil always writes; fingers still swipe and tap as usual. The pencil button opens the
+  // tools (pen, highlighter, eraser, colours, undo); on a device with no pencil, a finger writes
+  // while the tools are open. Strokes are kept per page in page-relative units, so they stay on the
+  // same words whatever the screen size, and are saved on the device (IndexedDB).
+  const INK_TOOLS = {
+    pen: { colors: ["#D0312D", "ink", "#1F5FBF", "#1E8A4C"], w: 0.0034 },
+    hl: { colors: ["#FFD400", "#6FDB6F", "#FF8CC6", "#74C4FF"], w: 0.046 },
+  };
+  const inkState = {
+    tool: store.get("inkTool", "pen"),                         // pen | hl | eraser
+    color: store.get("inkColor", { pen: "#D0312D", hl: "#FFD400" }),
+    show: store.get("inkShow", true),
+  };
+  const inks = new Map();       // page -> [{ t: "pen"|"hl", c, w, p: [x, y, pressure, ...] }]
+  const undoStack = [];         // [{ p, before }]
+  const inkbar = $("#inkbar");
+  let palOpen = false;
+  let sawPencil = store.get("sawPencil", false);   // once a pencil is seen, fingers never write
+  let ignoreClickUntil = 0;
+  let stroke = null;            // the stroke being drawn
+
+  // Storage: IndexedDB (plenty of room); localStorage if that's unavailable.
+  let idb = null;
+  function loadInk() {
+    return new Promise((res) => {
+      let rq;
+      try { rq = indexedDB.open("hafiz13", 1); } catch { return res(null); }
+      rq.onupgradeneeded = () => rq.result.createObjectStore("ink");
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = rq.onblocked = () => res(null);
+    }).then((db) => new Promise((res) => {
+      idb = db;
+      if (!db) { for (const [k, v] of Object.entries(store.get("ink", {}))) inks.set(+k, v); return res(); }
+      const rq = db.transaction("ink").objectStore("ink").openCursor();
+      rq.onsuccess = () => {
+        const c = rq.result;
+        if (!c) return res();
+        if (Array.isArray(c.value) && c.value.length) inks.set(+c.key, c.value);
+        c.continue();
+      };
+      rq.onerror = () => res();
+    })).catch(() => {});
+  }
+  function saveInk(p) {
+    const s = inks.get(p) || [];
+    if (!s.length) inks.delete(p);
+    if (!idb) { store.set("ink", Object.fromEntries(inks)); return; }
+    try {
+      const os = idb.transaction("ink", "readwrite").objectStore("ink");
+      if (s.length) os.put(s, p); else os.delete(p);
+    } catch { /* storage unavailable */ }
+  }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+  // Two canvases per page, made only once a page has ink: highlights under the text, pen on top.
+  function inkLayers(wrap, create) {
+    let lo = wrap.querySelector(".ink-lo");
+    if (!lo) {
+      if (!create) return null;
+      lo = el("canvas", "ink ink-lo");
+      wrap.prepend(lo); wrap.append(el("canvas", "ink ink-hi"));
+      sizeInk(wrap);
+    }
+    return [lo, wrap.querySelector(".ink-hi")];
+  }
+  function syncInk(wrap) {
+    if (inkLayers(wrap, false)) sizeInk(wrap);
+    else if ((inks.get(+wrap.dataset.page) || []).length) inkLayers(wrap, true);
+  }
+  /** Where the page block sits inside its wrap: ink is stored relative to the page block. */
+  function inkGeom(wrap) {
+    const w = wrap.getBoundingClientRect(), pg = wrap.querySelector(".page").getBoundingClientRect();
+    return { left: w.left, top: w.top, ox: pg.left - w.left, oy: pg.top - w.top, pw: pg.width, ph: pg.height };
+  }
+  function sizeInk(wrap) {
+    const ls = inkLayers(wrap, false);
+    if (!ls) return;
+    const k = Math.min(devicePixelRatio || 1, 2);
+    for (const c of ls) { c.width = Math.round(wrap.clientWidth * k); c.height = Math.round(wrap.clientHeight * k); c.k = k; }
+    redrawInk(wrap);
+  }
+  const inkColor = (c) => (c === "ink" ? getComputedStyle(document.body).getPropertyValue("--ink").trim() : c);
+
+  function drawStroke(ctx, g, s) {
+    const k = ctx.canvas.k, pts = s.p, n = pts.length / 3;
+    const X = (i) => (g.ox + pts[i * 3] * g.pw) * k, Y = (i) => (g.oy + pts[i * 3 + 1] * g.ph) * k;
+    ctx.strokeStyle = ctx.fillStyle = inkColor(s.c);
+    ctx.lineCap = ctx.lineJoin = "round";
+    const base = s.w * g.ph * k;
+    if (s.t === "hl") {
+      ctx.lineWidth = base;
+      ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+      for (let i = 1; i < n; i++) ctx.lineTo(X(i), Y(i));
+      if (n === 1) ctx.lineTo(X(0) + 0.1, Y(0));
+      ctx.stroke();
+      return;
+    }
+    if (n === 1) { ctx.beginPath(); ctx.arc(X(0), Y(0), penWidth(base, pts[2]) / 2, 0, 7); ctx.fill(); return; }
+    for (let i = 1; i < n; i++) penSeg(ctx, X, Y, pts, base, i);
+    penTail(ctx, X, Y, pts, base, n);
+  }
+  const penWidth = (base, pr) => base * (0.4 + 1.2 * pr);
+  // A smooth curve through the midpoints, one piece per new point, so it can be drawn as the pencil moves.
+  function penSeg(ctx, X, Y, pts, base, i) {
+    ctx.lineWidth = penWidth(base, (pts[i * 3 - 1] + pts[i * 3 + 2]) / 2);
+    ctx.beginPath();
+    if (i === 1) ctx.moveTo(X(0), Y(0)); else ctx.moveTo((X(i - 2) + X(i - 1)) / 2, (Y(i - 2) + Y(i - 1)) / 2);
+    ctx.quadraticCurveTo(X(i - 1), Y(i - 1), (X(i - 1) + X(i)) / 2, (Y(i - 1) + Y(i)) / 2);
+    ctx.stroke();
+  }
+  function penTail(ctx, X, Y, pts, base, n) {
+    ctx.lineWidth = penWidth(base, pts[n * 3 - 1]);
+    ctx.beginPath(); ctx.moveTo((X(n - 2) + X(n - 1)) / 2, (Y(n - 2) + Y(n - 1)) / 2); ctx.lineTo(X(n - 1), Y(n - 1)); ctx.stroke();
+  }
+
+  function redrawInk(wrap, only) {
+    const ls = inkLayers(wrap, false);
+    if (!ls) return;
+    const g = inkGeom(wrap), list = inks.get(+wrap.dataset.page) || [];
+    ls.forEach((c, li) => {
+      if (only != null && only !== li) return;
+      const ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, c.width, c.height);
+      for (const s of list) if ((s.t === "hl") === (li === 0)) drawStroke(ctx, g, s);
+      if (stroke && stroke.s && stroke.wrap === wrap && (stroke.s.t === "hl") === (li === 0)) drawStroke(ctx, g, stroke.s);
+    });
+  }
+  const wrapsOf = (p) => book.querySelectorAll(`.page-wrap[data-page="${p}"]`);
+  function redrawPage(p) { wrapsOf(p).forEach((w) => (inkLayers(w, false) ? redrawInk(w) : syncInk(w))); }
+
+  function remember(p) {
+    undoStack.push({ p, before: (inks.get(p) || []).slice() });
+    if (undoStack.length > 300) undoStack.shift();
+  }
+  /** Undo the last change on the page(s) on screen. */
+  function undoInk() {
+    const visible = pagesOfSlot(currentSlot);
+    for (let i = undoStack.length - 1; i >= 0; i--) {
+      if (!visible.includes(undoStack[i].p)) continue;
+      const { p, before } = undoStack.splice(i, 1)[0];
+      inks.set(p, before); saveInk(p); redrawPage(p);
+      return;
+    }
+  }
+
+  // ---------- drawing ----------
+  const canDraw = (e) => e.pointerType === "pen" || (palOpen && !sawPencil && e.isPrimary && e.button === 0);
+  function toPage(e) {
+    const g = stroke.g;
+    return [(e.clientX - g.left - g.ox) / g.pw, (e.clientY - g.top - g.oy) / g.ph];
+  }
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+
+  book.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "pen" && !sawPencil) { sawPencil = true; store.set("sawPencil", true); updatePalette(); }
+    if (stroke || !canDraw(e)) return;
+    const wrap = e.target.closest && e.target.closest(".page-wrap");
+    if (!wrap) return;
+    e.preventDefault();
+    if (!inkState.show) { inkState.show = true; store.set("inkShow", true); document.body.classList.remove("ink-hidden"); }
+    const p = +wrap.dataset.page;
+    // A stylus held eraser-end down (or with its eraser button) erases, whatever tool is picked.
+    const tool = e.button === 5 || e.buttons & 32 ? "eraser" : inkState.tool;
+    stroke = { id: e.pointerId, wrap, p, g: inkGeom(wrap), tool, last: null, pen: e.pointerType === "pen" };
+    if (tool === "eraser") { stroke.before = (inks.get(p) || []).slice(); stroke.erased = false; }
+    else {
+      inkLayers(wrap, true);
+      stroke.s = { t: tool, c: inkState.color[tool], w: INK_TOOLS[tool].w, p: [] };
+    }
+    try { book.setPointerCapture(e.pointerId); } catch { /* fine without */ }
+    addPoints(e, [e]);
+  });
+  book.addEventListener("pointermove", (e) => {
+    if (!stroke || e.pointerId !== stroke.id) return;
+    e.preventDefault();
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    addPoints(e, evs.length ? evs : [e]);
+  });
+  function addPoints(e, evs) {
+    const st = stroke;
+    if (st.tool === "eraser") { for (const ev of evs) erase(st, ev); return; }
+    const pts = st.s.p, startN = pts.length / 3;
+    for (const ev of evs) {
+      if (st.last && Math.hypot(ev.clientX - st.last[0], ev.clientY - st.last[1]) < 0.7) continue;
+      st.last = [ev.clientX, ev.clientY];
+      const [x, y] = toPage(ev);
+      // A pencil reports how hard it presses; a mouse or finger gets the middle width.
+      const pr = ev.pointerType === "pen" && ev.pressure > 0 ? ev.pressure : 0.5;
+      pts.push(r4(x), r4(y), Math.round(pr * 100) / 100);
+    }
+    const n = pts.length / 3;
+    if (n === startN) return;
+    if (st.s.t === "hl") { redrawInk(st.wrap, 0); return; }
+    const c = st.wrap.querySelector(".ink-hi"), ctx = c.getContext("2d"), g = st.g, k = c.k;
+    const X = (i) => (g.ox + pts[i * 3] * g.pw) * k, Y = (i) => (g.oy + pts[i * 3 + 1] * g.ph) * k;
+    ctx.strokeStyle = inkColor(st.s.c); ctx.lineCap = ctx.lineJoin = "round";
+    for (let i = Math.max(1, startN); i < n; i++) penSeg(ctx, X, Y, pts, st.s.w * g.ph * k, i);
+  }
+  /** Remove every stroke that passes under the eraser. */
+  function erase(st, ev) {
+    const list = inks.get(st.p);
+    if (!list || !list.length) return;
+    const g = st.g, x = ev.clientX - g.left - g.ox, y = ev.clientY - g.top - g.oy;
+    const keep = list.filter((s) => {
+      const reach = 10 + (s.w * g.ph) / 2, pts = s.p;
+      for (let i = 0; i < pts.length; i += 3) {
+        const ax = pts[i] * g.pw, ay = pts[i + 1] * g.ph;
+        const bx = i + 3 < pts.length ? pts[i + 3] * g.pw : ax, by = i + 3 < pts.length ? pts[i + 4] * g.ph : ay;
+        const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+        if (Math.hypot(x - ax - t * dx, y - ay - t * dy) <= reach) return false;
+      }
+      return true;
+    });
+    if (keep.length !== list.length) { inks.set(st.p, keep); st.erased = true; redrawPage(st.p); }
+  }
+  function endStroke(e) {
+    if (!stroke || e.pointerId !== stroke.id) return;
+    const st = stroke;
+    stroke = null;
+    ignoreClickUntil = performance.now() + 400;
+    // The first time the pencil writes, bring up the tools — after the stroke, so the page never moves under it.
+    if (st.pen && !palOpen) setTimeout(openPalette, 0);
+    if (st.tool === "eraser") {
+      if (st.erased) { undoStack.push({ p: st.p, before: st.before }); saveInk(st.p); }
+      return;
+    }
+    if (e.type === "pointercancel" && st.s.p.length < 9) { redrawInk(st.wrap); return; }
+    remember(st.p);
+    if (!inks.has(st.p)) inks.set(st.p, []);
+    inks.get(st.p).push(st.s);
+    saveInk(st.p);
+    redrawPage(st.p);
+  }
+  book.addEventListener("pointerup", endStroke);
+  book.addEventListener("pointercancel", endStroke);
+  // Writing must never scroll the page: stop the touch that carries the pencil (and, while
+  // writing, a resting palm) before the browser turns it into a swipe.
+  book.addEventListener("touchstart", (e) => {
+    if (stroke || [...e.touches].some((t) => t.touchType === "stylus") || (palOpen && !sawPencil)) e.preventDefault();
+  }, { passive: false });
+  book.addEventListener("touchmove", (e) => { if (stroke) e.preventDefault(); }, { passive: false });
+
+  // ---------- tools ----------
+  function openPalette() {
+    if (palOpen) return;
+    palOpen = true;
+    inkbar.hidden = false;
+    updatePalette();
+    layoutBook();
+  }
+  function closePalette() {
+    if (!palOpen) return;
+    palOpen = false;
+    inkbar.hidden = true;
+    updatePalette();
+    layoutBook();
+  }
+  function updatePalette() {
+    // Without a pencil, a finger writes while the tools are open, so the book stops swiping.
+    document.body.classList.toggle("ink-finger", palOpen && !sawPencil);
+    $("#btn-ink").classList.toggle("on", palOpen);
+    inkbar.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("sel", b.dataset.tool === inkState.tool));
+    const box = $("#ink-colors");
+    box.replaceChildren();
+    const t = INK_TOOLS[inkState.tool];
+    box.hidden = !t;
+    if (!t) return;
+    for (const c of t.colors) {
+      const b = el("button", "swatch" + (inkState.tool === "hl" ? " hl" : "") + (inkState.color[inkState.tool] === c ? " sel" : ""));
+      b.style.setProperty("--c", c === "ink" ? "var(--ink)" : c);
+      b.setAttribute("aria-label", "Colour");
+      b.addEventListener("click", () => { inkState.color[inkState.tool] = c; store.set("inkColor", inkState.color); updatePalette(); });
+      box.append(b);
+    }
+  }
+  inkbar.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => {
+    inkState.tool = b.dataset.tool; store.set("inkTool", inkState.tool); updatePalette();
+  }));
+  $("#btn-ink").addEventListener("click", () => {
+    if (palOpen) { closePalette(); return; }
+    chromeOn = false; top.hidden = bottom.hidden = true; document.body.classList.remove("chrome-on");
+    openPalette();
+  });
+  $("#ink-done").addEventListener("click", closePalette);
+  $("#ink-undo").addEventListener("click", undoInk);
+  $("#ink-clear").addEventListener("click", () => {
+    const pages = pagesOfSlot(currentSlot).filter((p) => (inks.get(p) || []).length);
+    if (!pages.length) return;
+    if (!confirm(pages.length > 1 ? "Clear all pencil marks on these two pages?" : "Clear all pencil marks on this page?")) return;
+    for (const p of pages) { remember(p); inks.set(p, []); saveInk(p); redrawPage(p); }
+  });
+  updatePalette();
 
   // ---------- install (Android: one-tap install; in-app browsers can't install, so send people to Chrome) ----------
   const ua = navigator.userAgent;
@@ -660,8 +979,10 @@
   // ---------- start ----------
   applyTheme(state.theme);
   document.body.classList.toggle("ruled", state.ruled);
+  document.body.classList.toggle("ink-hidden", !inkState.show);
   Promise.all([
     fetch("mushaf.json").then((r) => r.json()),
+    loadInk(),
     document.fonts.load('24px "IndoPak"', "ب"),
     document.fonts.load('24px "SurahNames"', "surah001"),
   ]).then(([data]) => {

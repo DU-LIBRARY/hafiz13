@@ -32,6 +32,9 @@
     <button id="btn-find" class="icon" aria-label="Search verses">
       <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
     </button>
+    <button id="btn-ink" class="icon" aria-label="Write with Apple Pencil">
+      <svg viewBox="0 0 24 24"><path d="M4 20l1.2-4.6L15.6 5a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z"/><path d="M13.5 7l3.5 3.5"/></svg>
+    </button>
     <button id="btn-bookmark" class="icon" aria-label="Bookmark page">
       <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
     </button>
@@ -44,6 +47,28 @@
     <input id="scrub" type="range" min="1" max="847" step="1" dir="rtl" aria-label="Page">
     <span id="scrub-label"></span>
   </footer>
+
+  <div id="inkbar" class="inkbar" role="toolbar" aria-label="Pencil tools" hidden>
+    <button class="icon" data-tool="pen" aria-label="Pen">
+      <svg viewBox="0 0 24 24"><path d="M4 20l1.2-4.6L15.6 5a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z"/><path d="M13.5 7l3.5 3.5"/></svg>
+    </button>
+    <button class="icon" data-tool="hl" aria-label="Highlighter">
+      <svg viewBox="0 0 24 24"><path d="M8.5 13.5 15 4l5 5-9.5 6.5z"/><path d="M8.5 13.5 6 16l2 2 2.5-2.5"/><path d="M3 21h7"/></svg>
+    </button>
+    <button class="icon" data-tool="eraser" aria-label="Eraser">
+      <svg viewBox="0 0 24 24"><path d="M8 19h12"/><path d="M4.6 14.6 13.4 5.8a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8L10.8 18H8z"/><path d="M8.5 10.7l4.8 4.8"/></svg>
+    </button>
+    <span class="sep"></span>
+    <div id="ink-colors" class="swatches"></div>
+    <span class="sep"></span>
+    <button id="ink-undo" class="icon" aria-label="Undo">
+      <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+    </button>
+    <button id="ink-clear" class="icon" aria-label="Clear this page">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></svg>
+    </button>
+    <button id="ink-done" class="text">Done</button>
+  </div>
 
   <div id="install-banner" class="install-banner" role="region" aria-label="Install" hidden>
     <span id="install-text"></span>
@@ -66,6 +91,7 @@
         <button role="tab" data-tab="surah" aria-selected="true">Surah</button>
         <button role="tab" data-tab="juz" aria-selected="false">Juz</button>
         <button role="tab" data-tab="bookmarks" aria-selected="false">Bookmarks</button>
+        <button role="tab" data-tab="notes" aria-selected="false">Notes</button>
       </div>
       <input id="search" type="search" placeholder="Surah name or number" aria-label="Search surahs">
       <ul id="list" class="list"></ul>
@@ -107,6 +133,10 @@
       <label class="toggle">
         <span>Margin notes<small>Ruku', ربع / نصف / ثلثة, para, manzil and sajdah, as printed</small></span>
         <input type="checkbox" id="opt-margins">
+      </label>
+      <label class="toggle">
+        <span>Show my pencil notes<small>Writing and highlights made with Apple Pencil (or a finger, from the pencil button)</small></span>
+        <input type="checkbox" id="opt-ink">
       </label>
       <label class="toggle">
         <span>Tap edges to turn pages<small>Left edge forward, right edge back; tap the middle for the menu</small></span>

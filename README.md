@@ -7,6 +7,7 @@ A clean 13-line IndoPak Quran reader (Taj Company layout, 847 pages) for iPhone,
 - Swipe left-to-right to turn forward, like a real mushaf; two facing pages on iPad in landscape.
 - Surah / juz / page navigation, bookmarks, Paper / White / Night themes.
 - Verse search (magnifier in the top bar): type Arabic words — vowels and spelling differences are ignored, so a plain "الصلاة" finds "الصَّلٰوةَ" — or a reference like `2:255`, `Yasin 12` or `Kahf`. Tap a result to open its page with the verse highlighted.
+- Apple Pencil: write anywhere on the page, including the margins. Circle or underline mistakes with the pen, or go over them with the highlighter, which sits under the letters so the text stays clear. The pencil always writes and your fingers still swipe and tap as usual. The toolbar (the pencil button in the top bar, or it appears the first time you write) has pen, highlighter, eraser, colours, undo and clear-page. Without a pencil, open the toolbar and write with a finger; tap **Done** to swipe pages again. Notes are saved on the device and listed under Contents → **Notes**. Turn them off under Display → **Show my pencil notes**.
 - Works offline once opened. No accounts, no tracking.
 
 ## Margin marks
